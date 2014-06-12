@@ -53,7 +53,6 @@ static void releaseAssetCallback(void *info) {
             CGFloat cropToMaxSize = MIN(maxLongSide / croppedImageSize.width * originalImageSize.width, maxLongSide / croppedImageSize.height * originalImageSize.height);
             options = @{(NSString *)kCGImageSourceCreateThumbnailFromImageAlways : @YES,
                         (NSString *)kCGImageSourceThumbnailMaxPixelSize : @(cropToMaxSize),
-                        (NSString *)kCGImageSourceCreateThumbnailWithTransform : @YES,
                         };
         } else {
             options = @{(NSString *)kCGImageSourceCreateThumbnailFromImageAlways : @YES,
@@ -73,7 +72,7 @@ static void releaseAssetCallback(void *info) {
 
     if (self.metadata[@"AdjustmentXMP"]) {
         // some things have been done to this image in photos.app
-        CGImageRef newImg = [self applyXMPAdjustment:img xmp:self.metadata[@"AdjustmentXMP"] maxSize:maxLongSide originalSize:originalImageSize];
+        CGImageRef newImg = [self applyXMPAdjustment:img xmp:self.metadata[@"AdjustmentXMP"] maxSize:maxLongSide originalSize:originalImageSize orientation:self.orientation];
         CGImageRelease(img);
         img = newImg;
     }
@@ -82,7 +81,7 @@ static void releaseAssetCallback(void *info) {
 }
 
 
-- (CGImageRef)applyXMPAdjustment:(CGImageRef)rawImage xmp:(NSString *)xmpString maxSize:(CGFloat)maxSize originalSize:(CGSize)originalImageSize CF_RETURNS_RETAINED {
+- (CGImageRef)applyXMPAdjustment:(CGImageRef)rawImage xmp:(NSString *)xmpString maxSize:(CGFloat)maxSize originalSize:(CGSize)originalImageSize orientation:(ALAssetOrientation)orientation CF_RETURNS_RETAINED {
     NSData *xmpData = [xmpString dataUsingEncoding:NSUTF8StringEncoding];
     NSError *error = nil;
 
@@ -141,10 +140,63 @@ static void releaseAssetCallback(void *info) {
                     r.origin.y /= zoom;
                     r.size.width /= zoom;
                     r.size.height /= zoom;
-                    [filter setValue:[NSValue valueWithCGRect:r] forKey:@"inputRectangle"];
+                    [filter setValue:[NSValue valueWithCGRect:CGRectIntegral(r)] forKey:@"inputRectangle"];
                 }
             }
         }
+    }
+
+    CGAffineTransform transform = CGAffineTransformIdentity;
+
+    // fix exif transform
+    switch (orientation) {
+        case ALAssetOrientationDown:
+        case ALAssetOrientationDownMirrored:
+            transform = CGAffineTransformMakeRotation(M_PI);
+            break;
+
+        case ALAssetOrientationLeft:
+        case ALAssetOrientationLeftMirrored:
+            transform = CGAffineTransformMakeRotation(M_PI_2);
+            break;
+
+        case ALAssetOrientationRight:
+        case ALAssetOrientationRightMirrored:
+            transform = CGAffineTransformMakeRotation(-M_PI_2);
+            break;
+
+        case ALAssetOrientationUp:
+        case ALAssetOrientationUpMirrored:
+        default:
+            // no rotation
+            break;
+    }
+
+    // fix exif mirror
+    switch (orientation) {
+
+        case ALAssetOrientationDownMirrored:
+        case ALAssetOrientationLeftMirrored:
+        case ALAssetOrientationRightMirrored:
+        case ALAssetOrientationUpMirrored:
+            // mirror image
+            transform = CGAffineTransformScale(transform, -1.0, 1.0);
+            break;
+
+        case ALAssetOrientationDown:
+        case ALAssetOrientationLeft:
+        case ALAssetOrientationRight:
+        case ALAssetOrientationUp:
+        default:
+            // no mirroring
+            break;
+    }
+
+    // if we calculated a transform, add a filter to the chain
+    if (!CGAffineTransformIsIdentity(transform)) {
+        CIFilter *transformFilter = [CIFilter filterWithName:@"CIAffineTransform"];
+        [transformFilter setValue:[NSValue valueWithCGAffineTransform:transform] forKey:@"inputTransform"];
+        [filterArray addObject:transformFilter];
     }
 
     // filter chain

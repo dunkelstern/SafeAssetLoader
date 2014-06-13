@@ -218,3 +218,57 @@ static void releaseAssetCallback(void *info) {
 }
 
 @end
+
+@implementation NSDictionary (AssetLoading)
+
+- (CGSize)assetSize {
+    // fetch EXIF rotation
+    ALAssetOrientation orientation = [self[(NSString *)kCGImagePropertyOrientation] integerValue];
+
+    // fetch pixel size
+    CGSize assetSize = CGSizeMake([self[@"PixelWidth"] floatValue], [self[@"PixelHeight"] floatValue]);
+
+    // check if XMP adjustment is neccessary
+    if (self[@"AdjustmentXMP"]) {
+        NSError *error;
+        NSData *xmpData = [self[@"AdjustmentXMP"] dataUsingEncoding:NSUTF8StringEncoding];
+        NSArray *filterArray = [CIFilter filterArrayFromSerializedXMP:xmpData
+                                                     inputImageExtent:CGRectMake(0, 0, assetSize.width, assetSize.height)
+                                                                error:&error];
+        if (!filterArray) {
+            NSLog(@"Could not create filter array: %@", error);
+        }
+
+        // find crop filters in filter array as they change the size
+        for (CIFilter *filter in filterArray) {
+            if ([filter.name isEqualToString:@"CICrop"]) {
+                CGRect r = [(NSValue *)[filter valueForKey:@"inputRectangle"] CGRectValue];
+                assetSize = r.size;
+            }
+        }
+    }
+
+    // fix exif transform
+    switch (orientation) {
+        case ALAssetOrientationLeft:
+        case ALAssetOrientationLeftMirrored:
+        case ALAssetOrientationRight:
+        case ALAssetOrientationRightMirrored: {
+            CGFloat tmp = assetSize.width;
+            assetSize.width = assetSize.height;
+            assetSize.height = tmp;
+            break;
+        }
+
+        case ALAssetOrientationUp:
+        case ALAssetOrientationUpMirrored:
+        case ALAssetOrientationDown:
+        case ALAssetOrientationDownMirrored:
+        default:
+            // no rotation
+            break;
+    }
+    return assetSize;
+}
+
+@end

@@ -11,5 +11,8 @@
 @interface ALAssetRepresentation (SafeLoading)
 
 - (CGImageRef)loadImageOfSize:(CGFloat)maxLongSide CF_RETURNS_RETAINED;
+@end
 
+@interface NSDictionary (AssetLoading)
+- (CGSize)assetSize;
 @end

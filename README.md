@@ -40,6 +40,7 @@ if (source) {
         assetSize = [(__bridge NSDictionary *)metadata assetSize];
         CFRelease(metadata);
     }
+    CFRelease(source);
 }
 ~~~
 

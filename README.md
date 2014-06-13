@@ -27,6 +27,22 @@ ALAssetsLibrary *lib = [[ALAssetsLibrary alloc] init];
 }];
 ~~~
 
+There is another method to calculate the asset size from an options dictionary in case you have the dictionary but no access to the `ALAssetRepresentation` anymore (like you loaded the image from a local file and got to the dictionary by means of `CGImageSourceCopyProperties`):
+
+~~~objc
+CGSize assetSize = CGSizeZero;
+
+NSURL *imageURL = [NSURL fileURLWithPath:@"/path/to/your/file"];
+CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)(imageURL), NULL);
+if (source) {
+    CFDictionaryRef metadata = CGImageSourceCopyProperties(source, NULL);
+    if (metadata) {
+        assetSize = [(__bridge NSDictionary *)metadata assetSize];
+        CFRelease(metadata);
+    }
+}
+~~~
+
 # Usage for asset picker
 
 In the source code there is a reimplementation of the Apple image picker as an example to how to use the `ALAssetsLibrary` you can include that picker if you want to modify some aspect of the picker.

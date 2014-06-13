@@ -20,14 +20,17 @@
 @implementation ViewController
 
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
+    // navigation will be by segue
     if ([[segue destinationViewController] isKindOfClass:[AssetLoaderViewController class]]) {
         AssetLoaderViewController *assetLoader = (AssetLoaderViewController *)[segue destinationViewController];
-        [assetLoader setMaxSize:320];
+        [assetLoader setMaxSize:320];   // only load images up to 320 pixels in width or height (longer side = 320 px)
         [assetLoader setCancelBlock:^{
+            // display message that the user canceled
             self.statusLabel.text = NSLocalizedString(@"User cancelled", @"Message displayed if the user cancelled picking an image");
             [self.spinner stopAnimating];
         }];
         [assetLoader setFinishBlock:^(CGImageRef image) {
+            // display message that the user picked an image and the picked image
             self.imagePreview.image = [UIImage imageWithCGImage:image];
             self.statusLabel.text = NSLocalizedString(@"User picked image", @"Message displayed if the user picked an image");
             [self.spinner stopAnimating];

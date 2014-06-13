@@ -14,7 +14,7 @@
 @interface AssetFolderViewController () {
     ALAssetsLibrary *assetsLibrary;
     NSMutableArray *assetGroups;
-    NSLock *assetGroupsLock;
+    NSLock *assetGroupsLock;        // Lock for the assetGroups Array
 }
 
 @end
@@ -27,6 +27,8 @@
     assetGroupsLock.name = @"assetGroupsLock";
 
     assetGroups = [NSMutableArray array];
+
+    // Display message to the user if we can not access the assets library
     [self loadAssetGroups:^(NSError *error) {
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Error while accessing Assets Library", @"Error message title displayed when accessing Assets Library fails")
                                                         message:error.localizedDescription
@@ -36,6 +38,7 @@
         [alert show];
     }];
 
+    // Observe change notifications and reload the album list
     [[NSNotificationCenter defaultCenter] addObserverForName:ALAssetsLibraryChangedNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
@@ -61,11 +64,12 @@
 }
 
 - (void)dealloc {
+    // Unobserve the change notification
     [[NSNotificationCenter defaultCenter] removeObserver:self name:ALAssetsLibraryChangedNotification object:nil];
 }
 
 - (void)viewDidLoad {
-    if (self.storyboard) return;
+    if (self.storyboard) return;    // in storyboard land the storyboard initializes you
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
                                                                                           target:self
                                                                                           action:@selector(cancelPressed:)];
@@ -77,6 +81,7 @@
 #pragma mark - Navigation
 
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
+    // in case of storyboard tell the destination view controller what we have selected
     if ([[segue destinationViewController] isKindOfClass:[AssetImageListViewController class]]) {
         AssetImageListViewController *imageLib = (AssetImageListViewController *)[segue destinationViewController];
         [self setupImageList:imageLib forGroup:assetGroups[self.tableView.indexPathForSelectedRow.row]];
@@ -85,6 +90,7 @@
 
 #pragma mark - UI Actions
 - (IBAction)cancelPressed:(id)sender {
+    // dismiss complete navigation stack and call cancel block
     [self dismissViewControllerAnimated:YES completion:^{
         if (self.cancelBlock) self.cancelBlock();
     }];
@@ -94,6 +100,7 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     NSInteger count;
+    // only access the assetGroups array while holding a lock
     [assetGroupsLock lock];
     count = [assetGroups count];
     [assetGroupsLock unlock];
@@ -103,6 +110,8 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AssetFolderCell" forIndexPath:indexPath];
 
+    // lock the assetsGroups array before accessing it to avoid 
+    // "Mutated while enumerating" exception
     [assetGroupsLock lock];
     ALAssetsGroup *group = assetGroups[indexPath.row];
     cell.imageView.image = [UIImage imageWithCGImage:group.posterImage];
@@ -116,8 +125,9 @@
 #pragma mark - Tableview Delegate
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (self.storyboard) return;
+    if (self.storyboard) return;    // in storyboard land the storyboard handles you
 
+    // no storyboard, create image list controller ourselves
     AssetImageListViewController *imageLib = [[AssetImageListViewController alloc] init];
     [self setupImageList:imageLib forGroup:assetGroups[indexPath.row]];
     [self.navigationController pushViewController:imageLib animated:YES];
@@ -126,6 +136,7 @@
 #pragma mark - Internal
 
 - (void)setupImageList:(AssetImageListViewController *)controller forGroup:(ALAssetsGroup *)group {
+    // convenience function to avoid code duplication for storyboard and plain calls
     [assetGroupsLock lock];
     [controller setGroup:group];
     [controller setFinishBlock:self.finishBlock];
@@ -134,6 +145,7 @@
 }
 
 - (void)loadAssetGroups:(void (^)(NSError *error))failureBlock {
+    // query assets library for defined groups, only modify assetGroups array while holding lock
     [assetGroupsLock lock];
     [assetGroups removeAllObjects];
     [assetGroupsLock unlock];

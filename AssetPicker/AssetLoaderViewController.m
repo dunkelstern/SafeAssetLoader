@@ -29,18 +29,21 @@
 #pragma mark - Setter
 
 - (void)setCancelBlock:(void (^)(void))cancelBlock {
+    // just set the same properties in our root view controller
     _cancelBlock = cancelBlock;
     AssetFolderViewController *root = (AssetFolderViewController *)self.viewControllers[0];
     [root setCancelBlock:self.cancelBlock];
 }
 
 - (void)setFinishBlock:(void (^)(CGImageRef))finishBlock {
+    // just set the same properties in our root view controller
     _finishBlock = finishBlock;
     AssetFolderViewController *root = (AssetFolderViewController *)self.viewControllers[0];
     [root setFinishBlock:finishBlock];
 }
 
 - (void)setMaxSize:(CGFloat)maxSize {
+    // just set the same properties in our root view controller
     _maxSize = maxSize;
     AssetFolderViewController *root = (AssetFolderViewController *)self.viewControllers[0];
     [root setMaxSize:maxSize];

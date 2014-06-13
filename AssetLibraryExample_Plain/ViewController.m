@@ -25,20 +25,28 @@
 }
 
 - (IBAction)loadImage:(id)sender {
+    // Allocate an asset loader
     AssetLoaderViewController *assetLoader = [[AssetLoaderViewController alloc] init];
-    [assetLoader setMaxSize:320];
+    [assetLoader setMaxSize:320]; // only load images up to 320 pixels on the longer side
+    
     __weak ViewController *weakSelf = self;
     [assetLoader setCancelBlock:^{
         ViewController *strongSelf = weakSelf;
+
+        // display cancel message
         strongSelf.statusLabel.text = NSLocalizedString(@"User cancelled", @"Message displayed if the user cancelled picking an image");
         [strongSelf.spinner stopAnimating];
     }];
     [assetLoader setFinishBlock:^(CGImageRef image) {
         ViewController *strongSelf = weakSelf;
+
+        // display picked image and message
         strongSelf.previewImage.image = [UIImage imageWithCGImage:image];
         strongSelf.statusLabel.text = NSLocalizedString(@"User picked image", @"Message displayed if the user picked an image");
         [strongSelf.spinner stopAnimating];
     }];
+
+    // present the view controller
     [self presentViewController:assetLoader animated:YES completion:nil];
 }
 
